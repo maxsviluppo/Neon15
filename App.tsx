@@ -82,7 +82,7 @@ const App: React.FC = () => {
   };
 
   const initGame = useCallback(() => {
-    if (!currentLevel || !currentLevel.gridSize) return;
+    if (!currentLevel || !currentLevel.gridSize || currentLevel.gridSize < 2) return;
     
     const newTiles = shuffleTiles(currentLevel.gridSize, currentLevel.mode, currentLevel.complexity);
     if (!newTiles || newTiles.length === 0) return;

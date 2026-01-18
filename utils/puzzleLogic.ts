@@ -55,8 +55,8 @@ export const isSolved = (tiles: (number | string | null)[], gridSize: number, mo
   return tiles.every((tile, index) => tile === target[index]);
 };
 
-// Fixed: Completed the truncated function
 export const getValidMoves = (emptyIndex: number, gridSize: number): number[] => {
+  if (emptyIndex < 0 || gridSize < 2) return [];
   const moves: number[] = [];
   const row = Math.floor(emptyIndex / gridSize);
   const col = emptyIndex % gridSize;
@@ -69,8 +69,8 @@ export const getValidMoves = (emptyIndex: number, gridSize: number): number[] =>
   return moves;
 };
 
-// Fixed: Implemented getMoveSequence to support sliding multiple tiles in a row/column
 export const getMoveSequence = (targetIndex: number, emptyIndex: number, gridSize: number): number[] | null => {
+  if (targetIndex < 0 || emptyIndex < 0 || gridSize < 2) return null;
   const targetRow = Math.floor(targetIndex / gridSize);
   const targetCol = targetIndex % gridSize;
   const emptyRow = Math.floor(emptyIndex / gridSize);
@@ -93,28 +93,36 @@ export const getMoveSequence = (targetIndex: number, emptyIndex: number, gridSiz
   return sequence;
 };
 
-// Fixed: Implemented shuffleTiles using a sequence of valid moves to ensure solvability
 export const shuffleTiles = (gridSize: number, mode: 'numbers' | 'letters' | 'math', complexity: Complexity): (number | string | null)[] => {
-  let tiles = getTargetState(gridSize, mode);
+  const safeGridSize = Math.max(2, Math.floor(Number(gridSize) || 3));
+  let tiles = getTargetState(safeGridSize, mode);
   let emptyIndex = tiles.length - 1;
 
   let shuffleMoves = 0;
   switch (complexity) {
-    case 'easy': shuffleMoves = 25; break;
-    case 'medium': shuffleMoves = 75; break;
-    case 'hard': shuffleMoves = 200; break;
-    default: shuffleMoves = 50;
+    case 'easy': shuffleMoves = safeGridSize * 8; break;
+    case 'medium': shuffleMoves = safeGridSize * 25; break;
+    case 'hard': shuffleMoves = safeGridSize * 60; break;
+    default: shuffleMoves = safeGridSize * 15;
   }
 
   let lastIndex = -1;
   for (let i = 0; i < shuffleMoves; i++) {
-    const possibleMoves = getValidMoves(emptyIndex, gridSize).filter(m => m !== lastIndex);
-    const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+    const possibleMoves = getValidMoves(emptyIndex, safeGridSize).filter(m => m !== lastIndex);
+    if (possibleMoves.length === 0) break;
     
-    // Perform swap
+    const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+    if (move === undefined) break;
+    
+    // Scambio sicuro
     [tiles[emptyIndex], tiles[move]] = [tiles[move], tiles[emptyIndex]];
     lastIndex = emptyIndex;
     emptyIndex = move;
+  }
+
+  // Se per assurdo fosse già risolto, riprova una volta
+  if (isSolved(tiles, safeGridSize, mode)) {
+    return shuffleTiles(safeGridSize, mode, complexity);
   }
 
   return tiles;
