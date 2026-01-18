@@ -3,6 +3,7 @@ import React from 'react';
 
 interface TileProps {
   value: string | number | null;
+  displayValue: string;
   index: number;
   isEmpty: boolean;
   isCorrect: boolean;
@@ -10,12 +11,15 @@ interface TileProps {
   canMove: boolean;
 }
 
-const Tile: React.FC<TileProps> = ({ value, isEmpty, isCorrect, onClick, canMove }) => {
+const Tile: React.FC<TileProps> = ({ value, displayValue, isEmpty, isCorrect, onClick, canMove }) => {
   if (isEmpty) {
     return (
       <div className="w-full h-full bg-slate-950/20 border-2 border-dashed border-slate-800/10 rounded-xl md:rounded-2xl" />
     );
   }
+
+  // Se l'espressione è lunga (es. math), riduciamo leggermente il font
+  const isLong = displayValue.length > 3;
 
   return (
     <button
@@ -23,7 +27,8 @@ const Tile: React.FC<TileProps> = ({ value, isEmpty, isCorrect, onClick, canMove
       disabled={!canMove}
       className={`
         relative w-full h-full flex items-center justify-center
-        text-xl md:text-3xl font-black rounded-xl md:rounded-2xl transition-all duration-300
+        ${isLong ? 'text-lg md:text-2xl' : 'text-xl md:text-3xl'}
+        font-black rounded-xl md:rounded-2xl transition-all duration-300
         perspective-1000 transform-gpu animate-slideIn
         ${canMove ? 'cursor-pointer active:scale-90 active:shadow-none hover:border-sky-500/50' : 'cursor-default'}
         ${isCorrect ? 'text-sky-400' : 'text-slate-100'}
@@ -36,9 +41,9 @@ const Tile: React.FC<TileProps> = ({ value, isEmpty, isCorrect, onClick, canMove
       }}
     >
       <div className="absolute inset-0 rounded-xl md:rounded-2xl opacity-5 bg-gradient-to-br from-white to-transparent pointer-events-none" />
-      <span className={`${isCorrect ? 'glow-text' : ''} drop-shadow-lg`}>{value}</span>
+      <span className={`${isCorrect ? 'glow-text' : ''} drop-shadow-lg tabular-nums`}>{displayValue}</span>
       {isCorrect && (
-        <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-sky-400 rounded-full shadow-[0_0_8px_#38bdf8] flicker" />
+        <div className="absolute top-1.5 right-1.5 w-1 h-1 bg-sky-400 rounded-full shadow-[0_0_8px_#38bdf8] flicker" />
       )}
     </button>
   );
