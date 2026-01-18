@@ -3,7 +3,8 @@ import { ITALIAN_ALPHABET } from '../constants';
 import { Complexity } from '../types';
 
 export const getTargetState = (gridSize: number, mode: 'numbers' | 'letters' | 'math'): (number | string | null)[] => {
-  const size = Math.max(2, Math.floor(Number(gridSize) || 3));
+  // Garantiamo che gridSize sia un numero valido tra 2 e 10 per evitare RangeError
+  const size = Math.max(2, Math.min(10, Math.floor(Number(gridSize) || 3)));
   const total = size * size;
   const target: (number | string | null)[] = [];
   
@@ -114,13 +115,11 @@ export const shuffleTiles = (gridSize: number, mode: 'numbers' | 'letters' | 'ma
     const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
     if (move === undefined) break;
     
-    // Scambio sicuro
     [tiles[emptyIndex], tiles[move]] = [tiles[move], tiles[emptyIndex]];
     lastIndex = emptyIndex;
     emptyIndex = move;
   }
 
-  // Se per assurdo fosse già risolto, riprova una volta
   if (isSolved(tiles, safeGridSize, mode)) {
     return shuffleTiles(safeGridSize, mode, complexity);
   }
