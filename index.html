@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,34 +69,44 @@
         }
 
         @keyframes radiate {
-          0% { transform: scale(0.8); opacity: 0.5; }
-          100% { transform: scale(2.5); opacity: 0; }
+          0% { transform: scale(0.8); opacity: 0.8; border-width: 4px; }
+          100% { transform: scale(3); opacity: 0; border-width: 1px; }
         }
         .animate-radiate {
           animation: radiate 2s infinite ease-out;
         }
 
-        @keyframes confetti-burst {
+        @keyframes digital-shard-burst {
           0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0; }
-          15% { opacity: 1; }
-          100% { transform: translate(var(--x), calc(var(--y) + 80px)) scale(0) rotate(720deg); opacity: 0; }
+          10% { opacity: 1; }
+          100% { transform: translate(var(--x), var(--y)) scale(0) rotate(360deg); opacity: 0; }
         }
-        .confetti {
+        .digital-shard {
           position: absolute;
-          width: 8px;
-          height: 8px;
-          border-radius: 2px;
-          animation: confetti-burst 2.5s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
-          filter: blur(0.5px);
+          width: 6px;
+          height: 6px;
+          animation: digital-shard-burst 2.2s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
           will-change: transform, opacity;
         }
 
+        @keyframes flourish-expand {
+          0% { width: 0; opacity: 0; }
+          50% { opacity: 1; }
+          100% { width: 140%; opacity: 0; }
+        }
+        .flourish-line {
+          position: absolute;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+          animation: flourish-expand 1.5s forwards cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
         @keyframes success-reveal {
-          0% { letter-spacing: -0.5em; opacity: 0; filter: blur(10px); }
-          100% { letter-spacing: 0.1em; opacity: 1; filter: blur(0); }
+          0% { letter-spacing: -0.5em; opacity: 0; filter: blur(10px); transform: scale(1.5); }
+          100% { letter-spacing: 0.15em; opacity: 1; filter: blur(0); transform: scale(1); }
         }
         .animate-reveal {
-          animation: success-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: success-reveal 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         @keyframes shimmer {
@@ -131,10 +142,12 @@
 <script type="importmap">
 {
   "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.460.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+    "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>

@@ -5,16 +5,17 @@ import { GameLevel } from './types';
 
 export const ITALIAN_ALPHABET = "ABCDEFGHILMNOPQRSTUVZ".split("");
 
+// Fixed type error by reordering manually and removing .sort() which caused type widening on the array literal.
 export const GAME_LEVELS: GameLevel[] = [
-  { id: 1, gridSize: 3, mode: 'numbers', label: 'Iniziazione Digitale' },
-  { id: 2, gridSize: 3, mode: 'letters', label: 'Codice Alfabetico' },
-  { id: 3, gridSize: 3, mode: 'math', label: 'Sintesi Aritmetica' },
-  { id: 4, gridSize: 4, mode: 'numbers', label: 'Matrice Standard' },
-  { id: 5, gridSize: 4, mode: 'letters', label: 'Protocollo Testuale' },
-  { id: 6, gridSize: 4, mode: 'math', label: 'Algoritmo Avanzato' },
-  { id: 7, gridSize: 5, mode: 'numbers', label: 'Griglia Suprema' },
-  { id: 8, gridSize: 5, mode: 'letters', label: 'Overload di Dati' },
-  { id: 9, gridSize: 5, mode: 'math', label: 'Singolarità Matematica' },
+  { id: 1, gridSize: 3, mode: 'numbers', label: 'Iniziazione Digitale', complexity: 'easy' },
+  { id: 2, gridSize: 3, mode: 'letters', label: 'Codice Alfabetico', complexity: 'easy' },
+  { id: 3, gridSize: 3, mode: 'math', label: 'Sintesi Aritmetica', complexity: 'easy' },
+  { id: 4, gridSize: 4, mode: 'numbers', label: 'Matrice Standard', complexity: 'medium' },
+  { id: 5, gridSize: 4, mode: 'letters', label: 'Protocollo Testuale', complexity: 'medium' },
+  { id: 6, gridSize: 4, mode: 'math', label: 'Algoritmo Avanzato', complexity: 'medium' },
+  { id: 7, gridSize: 5, mode: 'numbers', label: 'Griglia Suprema', complexity: 'hard' },
+  { id: 8, gridSize: 5, mode: 'letters', label: 'Overload di Dati', complexity: 'hard' },
+  { id: 9, gridSize: 5, mode: 'math', label: 'Singolarità Matematica', complexity: 'hard' },
 ];
 
 export const ICONS = {

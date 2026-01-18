@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { GameMode, Difficulty } from './types';
+import { GameMode, Difficulty, Complexity } from './types';
 import { ICONS, GAME_LEVELS } from './constants';
-import { shuffleTiles, isSolved, getValidMoves, getTargetState, getTileDisplay } from './utils/puzzleLogic';
+import { shuffleTiles, isSolved, getValidMoves, getTargetState, getTileDisplay, getMoveSequence } from './utils/puzzleLogic';
 import { playMoveSound, playWinSound, playSelectSound, playAmbientHum, playGlitchSound } from './utils/audioEffects';
 import Tile from './components/Tile';
 
@@ -29,20 +29,29 @@ const App: React.FC = () => {
   const ambientTimerRef = useRef<number | null>(null);
   const touchStart = useRef<{ x: number, y: number } | null>(null);
 
-  // Load initial data
   useEffect(() => {
-    const savedScores = localStorage.getItem('puzzle-15-best-scores');
-    if (savedScores) setBestScores(JSON.parse(savedScores));
-    
-    const savedLevel = localStorage.getItem('puzzle-15-unlocked-level');
-    if (savedLevel) {
-      setUnlockedLevel(parseInt(savedLevel));
-    } else {
-      setUnlockedLevel(3);
+    try {
+      const savedScores = localStorage.getItem('puzzle-15-best-scores');
+      if (savedScores) {
+        try {
+          const parsed = JSON.parse(savedScores);
+          if (parsed && typeof parsed === 'object') setBestScores(parsed);
+        } catch(e) {}
+      }
+      
+      const savedLevel = localStorage.getItem('puzzle-15-unlocked-level');
+      if (savedLevel) {
+        const val = parseInt(savedLevel);
+        if (!isNaN(val)) setUnlockedLevel(val);
+      } else {
+        setUnlockedLevel(3);
+      }
+      
+      const soundPref = localStorage.getItem('puzzle-15-sound');
+      if (soundPref !== null) setSoundEnabled(soundPref === 'true');
+    } catch (e) {
+      console.warn("Storage restricted");
     }
-    
-    const soundPref = localStorage.getItem('puzzle-15-sound');
-    if (soundPref !== null) setSoundEnabled(soundPref === 'true');
   }, []);
 
   const currentLevel = useMemo(() => 
@@ -55,41 +64,29 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (view === 'home') {
-      const firstAvailable = filteredLevels.filter(l => l.id <= unlockedLevel).pop() || filteredLevels[0];
-      setCurrentLevelId(firstAvailable.id);
+      const available = filteredLevels.filter(l => l.id <= unlockedLevel);
+      const firstAvailable = available.length > 0 ? available[available.length - 1] : filteredLevels[0];
+      if (firstAvailable && firstAvailable.id !== currentLevelId) {
+        setCurrentLevelId(firstAvailable.id);
+      }
     }
-  }, [selectedMode, filteredLevels, unlockedLevel, view]);
-
-  // Ambient sound management
-  useEffect(() => {
-    if (view === 'game' && soundEnabled && !isWon) {
-      const triggerAmbient = () => {
-        const rand = Math.random();
-        if (rand > 0.7) playAmbientHum();
-        else if (rand < 0.2) playGlitchSound();
-        
-        const nextDelay = Math.random() * 8000 + 4000; // 4-12 seconds
-        ambientTimerRef.current = window.setTimeout(triggerAmbient, nextDelay);
-      };
-
-      ambientTimerRef.current = window.setTimeout(triggerAmbient, 2000);
-    } else {
-      if (ambientTimerRef.current) window.clearTimeout(ambientTimerRef.current);
-    }
-    return () => {
-      if (ambientTimerRef.current) window.clearTimeout(ambientTimerRef.current);
-    };
-  }, [view, soundEnabled, isWon]);
+  }, [selectedMode, view, unlockedLevel, filteredLevels]);
 
   const toggleSound = () => {
     const newVal = !soundEnabled;
     setSoundEnabled(newVal);
-    localStorage.setItem('puzzle-15-sound', String(newVal));
+    try {
+      localStorage.setItem('puzzle-15-sound', String(newVal));
+    } catch (e) {}
     if (newVal) playSelectSound();
   };
 
   const initGame = useCallback(() => {
-    const newTiles = shuffleTiles(currentLevel.gridSize, currentLevel.mode);
+    if (!currentLevel || !currentLevel.gridSize) return;
+    
+    const newTiles = shuffleTiles(currentLevel.gridSize, currentLevel.mode, currentLevel.complexity);
+    if (!newTiles || newTiles.length === 0) return;
+
     setTiles(newTiles);
     const displays = newTiles.map(t => getTileDisplay(t, currentLevel.mode));
     setTileDisplays(displays);
@@ -100,18 +97,38 @@ const App: React.FC = () => {
     setIsActive(false);
     setIsWon(false);
     setIsNewRecord(false);
-    if (timerRef.current) window.clearInterval(timerRef.current);
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   }, [currentLevel]);
 
   useEffect(() => {
     if (view === 'game') {
       initGame();
     }
-  }, [currentLevelId, view, initGame]);
+    return () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+    };
+  }, [view, currentLevelId, initGame]);
+
+  useEffect(() => {
+    if (view === 'game' && soundEnabled && !isWon && isActive) {
+      const triggerAmbient = () => {
+        const rand = Math.random();
+        if (rand > 0.8) playAmbientHum();
+        else if (rand < 0.1) playGlitchSound();
+        ambientTimerRef.current = window.setTimeout(triggerAmbient, 6000 + Math.random() * 4000);
+      };
+      ambientTimerRef.current = window.setTimeout(triggerAmbient, 3000);
+    }
+    return () => {
+      if (ambientTimerRef.current) window.clearTimeout(ambientTimerRef.current);
+    };
+  }, [view, soundEnabled, isWon, isActive]);
 
   const startGame = () => {
     if (soundEnabled) playSelectSound();
-    initGame();
     setView('game');
   };
 
@@ -134,9 +151,10 @@ const App: React.FC = () => {
       setCurrentLevelId(nextId);
       if (nextId > unlockedLevel) {
         setUnlockedLevel(nextId);
-        localStorage.setItem('puzzle-15-unlocked-level', String(nextId));
+        try {
+          localStorage.setItem('puzzle-15-unlocked-level', String(nextId));
+        } catch (e) {}
       }
-      setIsWon(false);
     } else {
       goHome();
     }
@@ -148,7 +166,10 @@ const App: React.FC = () => {
         setTime(t => t + 1);
       }, 1000);
     } else {
-      if (timerRef.current) window.clearInterval(timerRef.current);
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
@@ -156,22 +177,34 @@ const App: React.FC = () => {
   }, [isActive, isWon, view]);
 
   const handleTileClick = useCallback((index: number) => {
-    if (isWon) return;
+    if (isWon || tiles.length === 0) return;
     const emptyIndex = tiles.indexOf(null);
-    const validMoves = getValidMoves(emptyIndex, currentLevel.gridSize);
-    if (validMoves.includes(index)) {
+    if (emptyIndex === -1) return;
+    
+    const sequence = getMoveSequence(index, emptyIndex, currentLevel.gridSize);
+    
+    if (sequence && sequence.length > 0) {
       if (soundEnabled) playMoveSound();
       if (!isActive) setIsActive(true);
+      
       setHistory(prev => [...prev, [...tiles]]);
       setHistoryDisplays(prev => [...prev, [...tileDisplays]]);
+      
       const newTiles = [...tiles];
       const newDisplays = [...tileDisplays];
-      [newTiles[emptyIndex], newTiles[index]] = [newTiles[index], newTiles[emptyIndex]];
-      [newDisplays[emptyIndex], newDisplays[index]] = [newDisplays[index], newDisplays[emptyIndex]];
+      
+      let currentHole = emptyIndex;
+      sequence.forEach(idxToMove => {
+        [newTiles[currentHole], newTiles[idxToMove]] = [newTiles[idxToMove], newTiles[currentHole]];
+        [newDisplays[currentHole], newDisplays[idxToMove]] = [newDisplays[idxToMove], newDisplays[currentHole]];
+        currentHole = idxToMove;
+      });
+      
       setTiles(newTiles);
       setTileDisplays(newDisplays);
       const newMovesCount = moves + 1;
       setMoves(newMovesCount);
+      
       if (isSolved(newTiles, currentLevel.gridSize, currentLevel.mode)) {
         setIsWon(true);
         setIsActive(false);
@@ -191,7 +224,7 @@ const App: React.FC = () => {
     setHistory(prev => prev.slice(0, -1));
     setHistoryDisplays(prev => prev.slice(0, -1));
     setMoves(prev => Math.max(0, prev - 1));
-    if (moves === 1) {
+    if (history.length === 1) {
       setIsActive(false);
       setTime(0);
     }
@@ -202,22 +235,32 @@ const App: React.FC = () => {
     if (emptyIndex === -1) return;
     const col = emptyIndex % currentLevel.gridSize;
     const row = Math.floor(emptyIndex / currentLevel.gridSize);
+    
     let targetIndex = -1;
-    if (direction === 'left' && col < currentLevel.gridSize - 1) targetIndex = emptyIndex + 1;
     if (direction === 'right' && col > 0) targetIndex = emptyIndex - 1;
-    if (direction === 'up' && row < currentLevel.gridSize - 1) targetIndex = emptyIndex + currentLevel.gridSize;
+    if (direction === 'left' && col < currentLevel.gridSize - 1) targetIndex = emptyIndex + 1;
     if (direction === 'down' && row > 0) targetIndex = emptyIndex - currentLevel.gridSize;
+    if (direction === 'up' && row < currentLevel.gridSize - 1) targetIndex = emptyIndex + currentLevel.gridSize;
+    
     if (targetIndex !== -1) handleTileClick(targetIndex);
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const handleTouchStart = (e: React.TouchEvent) => { 
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; 
+  };
+  
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStart.current || isWon) return;
     const dx = e.changedTouches[0].clientX - touchStart.current.x;
     const dy = e.changedTouches[0].clientY - touchStart.current.y;
-    const threshold = 40; 
-    if (Math.abs(dx) > Math.abs(dy)) { if (Math.abs(dx) > threshold) attemptSwipeMove(dx > 0 ? 'right' : 'left'); }
-    else if (Math.abs(dy) > threshold) { if (Math.abs(dy) > threshold) attemptSwipeMove(dy > 0 ? 'down' : 'up'); }
+    const threshold = 30;
+    
+    if (Math.abs(dx) > Math.abs(dy)) { 
+      if (Math.abs(dx) > threshold) attemptSwipeMove(dx > 0 ? 'right' : 'left'); 
+    }
+    else {
+      if (Math.abs(dy) > threshold) attemptSwipeMove(dy > 0 ? 'down' : 'up'); 
+    }
     touchStart.current = null;
   };
 
@@ -228,7 +271,9 @@ const App: React.FC = () => {
       setIsNewRecord(true);
       const updated = { ...bestScores, [key]: finalMoves };
       setBestScores(updated);
-      localStorage.setItem('puzzle-15-best-scores', JSON.stringify(updated));
+      try {
+        localStorage.setItem('puzzle-15-best-scores', JSON.stringify(updated));
+      } catch (e) {}
     }
   };
 
@@ -241,6 +286,15 @@ const App: React.FC = () => {
   const targetState = useMemo(() => getTargetState(currentLevel.gridSize, currentLevel.mode), [currentLevel]);
   const bestScoreKey = `level-${currentLevelId}`;
 
+  const getComplexityColor = (complexity: Complexity) => {
+    switch(complexity) {
+      case 'easy': return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+      case 'medium': return 'text-amber-400 border-amber-500/30 bg-amber-500/10';
+      case 'hard': return 'text-rose-400 border-rose-500/30 bg-rose-500/10';
+      default: return 'text-sky-400 border-sky-500/30 bg-sky-500/10';
+    }
+  };
+
   const Particles = () => (
     <>
       <div className="particle w-2 h-2 top-[20%] left-[10%]" />
@@ -250,22 +304,43 @@ const App: React.FC = () => {
     </>
   );
 
-  const ConfettiBurst = () => {
+  const DigitalShards = () => {
     const colors = ['#38bdf8', '#a855f7', '#ec4899', '#22d3ee', '#fbbf24'];
     return (
       <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
-        {Array.from({ length: 80 }).map((_, i) => {
-          const angle = (i / 80) * 360;
-          const distance = 100 + Math.random() * 300;
+        {Array.from({ length: 100 }).map((_, i) => {
+          const angle = (i / 100) * 360;
+          const distance = 120 + Math.random() * 400;
           const x = Math.cos(angle * (Math.PI / 180)) * distance;
           const y = Math.sin(angle * (Math.PI / 180)) * distance;
+          const delay = Math.random() * 0.5;
           return (
-            <div key={i} className="confetti" style={{ '--x': `${x}px`, '--y': `${y}px`, backgroundColor: colors[i % colors.length] } as any} />
+            <div 
+              key={i} 
+              className="digital-shard" 
+              style={{ 
+                '--x': `${x}px`, 
+                '--y': `${y}px`, 
+                backgroundColor: colors[i % colors.length],
+                animationDelay: `${delay}s`,
+                width: `${Math.random() * 6 + 2}px`,
+                height: `${Math.random() * 6 + 2}px`
+              } as any} 
+            />
           );
         })}
       </div>
     );
   };
+
+  const CyberFlourish = () => (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+      <div className="flourish-line rotate-[45deg]" />
+      <div className="flourish-line rotate-[-45deg]" />
+      <div className="flourish-line rotate-[90deg]" />
+      <div className="flourish-line rotate-[0deg]" />
+    </div>
+  );
 
   if (view === 'home') {
     return (
@@ -287,7 +362,7 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-4xl font-black tracking-tighter glow-text uppercase mb-1">Neon Matrix</h1>
             <div className="flex flex-col items-center gap-1 mb-2">
-              <span className="bg-sky-500/10 border border-sky-500/30 text-sky-400 px-3 py-1 rounded-full text-[10px] font-black tracking-[0.1em] uppercase">
+              <span className={`border px-3 py-1 rounded-full text-[10px] font-black tracking-[0.1em] uppercase ${getComplexityColor(currentLevel.complexity)}`}>
                 LVL {currentLevel.id}: {currentLevel.label}
               </span>
             </div>
@@ -334,6 +409,7 @@ const App: React.FC = () => {
                     className={`h-12 rounded-xl border flex flex-col items-center justify-center transition-all ${currentLevelId === level.id ? 'bg-sky-500 border-sky-400 text-slate-950 scale-105 shadow-lg' : level.id <= unlockedLevel ? 'border-slate-700 bg-slate-800/40 text-slate-400 hover:border-slate-500' : 'border-slate-900 bg-slate-950/50 text-slate-800 cursor-not-allowed'}`}
                   >
                     <span className="text-xs font-black">{level.gridSize}x{level.gridSize}</span>
+                    <span className="text-[6px] font-bold opacity-70">{level.complexity.toUpperCase()}</span>
                   </button>
                 ))}
               </div>
@@ -362,7 +438,7 @@ const App: React.FC = () => {
            
            <div className="bg-slate-900/80 px-6 py-2 rounded-2xl border border-sky-500/20 backdrop-blur-md flex flex-col items-center shadow-[0_0_20px_rgba(56,189,248,0.1)]">
              <div className="flex items-center gap-1.5">
-               <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse shadow-[0_0_8px_#38bdf8]" />
+               <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${currentLevel.complexity === 'easy' ? 'bg-emerald-400' : currentLevel.complexity === 'medium' ? 'bg-amber-400' : 'bg-rose-400'}`} />
                <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">L{currentLevel.id} • {currentLevel.mode.toUpperCase()}</span>
              </div>
              <span className="text-xs font-black text-sky-400 tracking-tight">{currentLevel.label}</span>
@@ -401,72 +477,98 @@ const App: React.FC = () => {
 
       <main className="flex-1 w-full max-w-md flex items-center justify-center p-2 z-10">
         <div className="game-board-container relative w-full aspect-square max-h-[75vh] max-w-[400px]">
-          <div 
-            className="grid gap-2 p-3 bg-slate-900/40 border border-slate-800/50 rounded-3xl shadow-2xl backdrop-blur-md w-full h-full"
-            style={{
-              gridTemplateColumns: `repeat(${currentLevel.gridSize}, 1fr)`,
-              gridTemplateRows: `repeat(${currentLevel.gridSize}, 1fr)`,
-              touchAction: 'none'
-            }}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
-            {tiles.map((tile, idx) => (
-              <Tile
-                key={`${idx}-${tile}`}
-                value={tile}
-                displayValue={tileDisplays[idx] || ""}
-                index={idx}
-                isEmpty={tile === null}
-                isCorrect={tile === targetState[idx]}
-                onClick={() => handleTileClick(idx)}
-                canMove={!isWon && getValidMoves(tiles.indexOf(null), currentLevel.gridSize).includes(idx)}
-              />
-            ))}
-          </div>
+          {tiles.length > 0 ? (
+            <div 
+              className="grid gap-2 p-3 bg-slate-900/40 border border-slate-800/50 rounded-3xl shadow-2xl backdrop-blur-md w-full h-full"
+              style={{
+                gridTemplateColumns: `repeat(${currentLevel.gridSize}, 1fr)`,
+                gridTemplateRows: `repeat(${currentLevel.gridSize}, 1fr)`,
+                touchAction: 'none'
+              }}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              {tiles.map((tile, idx) => {
+                const emptyIdx = tiles.indexOf(null);
+                const seq = emptyIdx !== -1 ? getMoveSequence(idx, emptyIdx, currentLevel.gridSize) : null;
+                return (
+                  <Tile
+                    key={`${idx}-${tile === null ? 'empty' : tile}`}
+                    value={tile}
+                    displayValue={tileDisplays[idx] || ""}
+                    index={idx}
+                    isEmpty={tile === null}
+                    isCorrect={tile === targetState[idx]}
+                    onClick={() => handleTileClick(idx)}
+                    canMove={!isWon && !!seq}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-12 h-12 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin" />
+            </div>
+          )}
 
           {isWon && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-xl rounded-3xl animate-slideIn border border-sky-500/30 p-6 overflow-y-auto">
-              <ConfettiBurst />
-              <div className="scanline-effect opacity-20" />
-              <div className="relative mb-6">
-                <div className="bg-sky-500/20 p-5 rounded-full neon-glow animate-bounce">
-                  {ICONS.Trophy}
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-2xl rounded-3xl animate-slideIn border-2 border-sky-500/50 p-6 overflow-hidden">
+              <DigitalShards />
+              <CyberFlourish />
+              <div className="scanline-effect opacity-30" />
+              
+              <div className="relative mb-8 flex items-center justify-center">
+                <div className="absolute w-40 h-40 border-4 border-sky-500/30 rounded-full animate-radiate" />
+                <div className="absolute w-40 h-40 border-2 border-sky-400/20 rounded-full animate-radiate [animation-delay:0.7s]" />
+                <div className="absolute w-40 h-40 border border-sky-300/10 rounded-full animate-radiate [animation-delay:1.4s]" />
+                
+                <div className="relative z-10 bg-sky-500/30 p-8 rounded-full shadow-[0_0_50px_rgba(56,189,248,0.4)] border border-sky-400/50 animate-bounce">
+                  <div className="scale-150 text-sky-400">
+                    {ICONS.Trophy}
+                  </div>
                 </div>
+                
                 {isNewRecord && (
-                  <div className="absolute -top-2 -right-6 bg-purple-500 text-white text-[9px] font-black px-2 py-1 rounded-full animate-pulse rotate-12">
-                    RECORD!
+                  <div className="absolute -top-6 -right-12 bg-purple-500 text-white text-[10px] font-black px-3 py-1.5 rounded-full animate-pulse rotate-12 shadow-[0_0_20px_rgba(168,85,247,0.5)] border border-purple-300/30">
+                    NUOVO RECORD!
                   </div>
                 )}
               </div>
-              <h2 className="text-2xl font-black text-white mb-6 tracking-[0.2em] animate-reveal text-center">SOLUZIONE TROVATA</h2>
-              <div className="flex gap-6 mb-8 z-10 bg-slate-900/60 px-6 py-4 rounded-2xl border border-slate-800/60">
-                <div className="text-center">
-                  <p className="text-[8px] uppercase font-bold text-slate-500 mb-1">Mosse</p>
-                  <p className="text-2xl font-black text-sky-400">{moves}</p>
+
+              <h2 className="text-3xl font-black text-white mb-8 tracking-[0.25em] animate-reveal text-center glow-text">
+                MISSION CLEAR
+              </h2>
+
+              <div className="grid grid-cols-2 gap-4 w-full max-w-[280px] mb-10 z-10">
+                <div className="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 flex flex-col items-center backdrop-blur-md transform transition-all hover:scale-105">
+                  <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest mb-1">MOSSE</span>
+                  <span className="text-3xl font-black text-sky-400 tabular-nums">{moves}</span>
                 </div>
-                <div className="w-px h-8 bg-slate-800 my-auto"></div>
-                <div className="text-center">
-                  <p className="text-[8px] uppercase font-bold text-slate-500 mb-1">Tempo</p>
-                  <p className="text-2xl font-black text-slate-100">{formatTime(time)}</p>
+                <div className="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 flex flex-col items-center backdrop-blur-md transform transition-all hover:scale-105">
+                  <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest mb-1">TEMPO</span>
+                  <span className="text-3xl font-black text-slate-100 tabular-nums">{formatTime(time)}</span>
                 </div>
               </div>
-              <div className="flex flex-col gap-3 w-full max-w-[220px] z-10">
+
+              <div className="flex flex-col gap-3 w-full max-w-[240px] z-10">
                 {nextLevelInCategory ? (
-                  <button onClick={nextLevel} className="w-full py-4 bg-sky-500 text-slate-950 font-black text-sm rounded-xl transition-all shadow-lg active:scale-95 border-b-4 border-sky-700">
-                    PROSSIMA MISSIONE
+                  <button onClick={nextLevel} className="w-full py-4 bg-sky-500 text-slate-950 font-black text-base rounded-2xl transition-all shadow-[0_0_30px_rgba(56,189,248,0.4)] active:scale-95 border-b-4 border-sky-700 hover:bg-sky-400">
+                    AVANTI
                   </button>
                 ) : (
-                  <div className="text-center py-2 px-4 bg-purple-500/10 border border-purple-500/30 rounded-xl mb-2">
-                    <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest">CATEGORIA COMPLETATA</p>
+                  <div className="text-center py-3 px-6 bg-purple-500/20 border-2 border-purple-500/50 rounded-2xl mb-2">
+                    <p className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em]">CATEGORIA COMPLETATA</p>
                   </div>
                 )}
-                <button onClick={initGame} className="w-full py-3 bg-slate-900 border border-slate-800 text-slate-400 font-bold text-xs rounded-xl hover:text-white">
-                  RIPROVA
-                </button>
-                <button onClick={goHome} className="w-full py-2 bg-transparent text-slate-500 font-bold text-[9px] uppercase tracking-[0.3em] hover:text-slate-300">
-                  MENU PRINCIPALE
-                </button>
+                
+                <div className="flex gap-2 w-full">
+                  <button onClick={initGame} className="flex-1 py-3 bg-slate-900/80 border border-slate-800 text-slate-300 font-bold text-xs rounded-xl hover:text-white transition-colors">
+                    RIPROVA
+                  </button>
+                  <button onClick={goHome} className="flex-1 py-3 bg-slate-900/80 border border-slate-800 text-slate-400 font-bold text-xs rounded-xl hover:text-slate-200 transition-colors">
+                    MENU
+                  </button>
+                </div>
               </div>
             </div>
           )}
