@@ -24,7 +24,7 @@ const App: React.FC = () => {
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [bestScores, setBestScores] = useState<Record<string, number>>({});
-  
+
   const timerRef = useRef<number | null>(null);
   const ambientTimerRef = useRef<number | null>(null);
   const touchStart = useRef<{ x: number, y: number } | null>(null);
@@ -36,9 +36,9 @@ const App: React.FC = () => {
         try {
           const parsed = JSON.parse(savedScores);
           if (parsed && typeof parsed === 'object') setBestScores(parsed);
-        } catch(e) {}
+        } catch (e) { }
       }
-      
+
       const savedLevel = localStorage.getItem('puzzle-15-unlocked-level');
       if (savedLevel) {
         const val = parseInt(savedLevel);
@@ -46,7 +46,7 @@ const App: React.FC = () => {
       } else {
         setUnlockedLevel(3);
       }
-      
+
       const soundPref = localStorage.getItem('puzzle-15-sound');
       if (soundPref !== null) setSoundEnabled(soundPref === 'true');
     } catch (e) {
@@ -54,13 +54,13 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const currentLevel = useMemo(() => 
+  const currentLevel = useMemo(() =>
     GAME_LEVELS.find(l => l.id === currentLevelId) || GAME_LEVELS[0]
-  , [currentLevelId]);
+    , [currentLevelId]);
 
-  const filteredLevels = useMemo(() => 
+  const filteredLevels = useMemo(() =>
     GAME_LEVELS.filter(l => l.mode === selectedMode)
-  , [selectedMode]);
+    , [selectedMode]);
 
   useEffect(() => {
     if (view === 'home') {
@@ -77,13 +77,13 @@ const App: React.FC = () => {
     setSoundEnabled(newVal);
     try {
       localStorage.setItem('puzzle-15-sound', String(newVal));
-    } catch (e) {}
+    } catch (e) { }
     if (newVal) playSelectSound();
   };
 
   const initGame = useCallback(() => {
     if (!currentLevel || !currentLevel.gridSize || currentLevel.gridSize < 2) return;
-    
+
     const newTiles = shuffleTiles(currentLevel.gridSize, currentLevel.mode, currentLevel.complexity);
     if (!newTiles || newTiles.length === 0) return;
 
@@ -153,7 +153,7 @@ const App: React.FC = () => {
         setUnlockedLevel(nextId);
         try {
           localStorage.setItem('puzzle-15-unlocked-level', String(nextId));
-        } catch (e) {}
+        } catch (e) { }
       }
     } else {
       goHome();
@@ -180,31 +180,31 @@ const App: React.FC = () => {
     if (isWon || tiles.length === 0) return;
     const emptyIndex = tiles.indexOf(null);
     if (emptyIndex === -1) return;
-    
+
     const sequence = getMoveSequence(index, emptyIndex, currentLevel.gridSize);
-    
+
     if (sequence && sequence.length > 0) {
       if (soundEnabled) playMoveSound();
       if (!isActive) setIsActive(true);
-      
+
       setHistory(prev => [...prev, [...tiles]]);
       setHistoryDisplays(prev => [...prev, [...tileDisplays]]);
-      
+
       const newTiles = [...tiles];
       const newDisplays = [...tileDisplays];
-      
+
       let currentHole = emptyIndex;
       sequence.forEach(idxToMove => {
         [newTiles[currentHole], newTiles[idxToMove]] = [newTiles[idxToMove], newTiles[currentHole]];
         [newDisplays[currentHole], newDisplays[idxToMove]] = [newDisplays[idxToMove], newDisplays[currentHole]];
         currentHole = idxToMove;
       });
-      
+
       setTiles(newTiles);
       setTileDisplays(newDisplays);
       const newMovesCount = moves + 1;
       setMoves(newMovesCount);
-      
+
       if (isSolved(newTiles, currentLevel.gridSize, currentLevel.mode)) {
         setIsWon(true);
         setIsActive(false);
@@ -235,31 +235,31 @@ const App: React.FC = () => {
     if (emptyIndex === -1) return;
     const col = emptyIndex % currentLevel.gridSize;
     const row = Math.floor(emptyIndex / currentLevel.gridSize);
-    
+
     let targetIndex = -1;
     if (direction === 'right' && col > 0) targetIndex = emptyIndex - 1;
     if (direction === 'left' && col < currentLevel.gridSize - 1) targetIndex = emptyIndex + 1;
     if (direction === 'down' && row > 0) targetIndex = emptyIndex - currentLevel.gridSize;
     if (direction === 'up' && row < currentLevel.gridSize - 1) targetIndex = emptyIndex + currentLevel.gridSize;
-    
+
     if (targetIndex !== -1) handleTileClick(targetIndex);
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => { 
-    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   };
-  
+
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStart.current || isWon) return;
     const dx = e.changedTouches[0].clientX - touchStart.current.x;
     const dy = e.changedTouches[0].clientY - touchStart.current.y;
     const threshold = 30;
-    
-    if (Math.abs(dx) > Math.abs(dy)) { 
-      if (Math.abs(dx) > threshold) attemptSwipeMove(dx > 0 ? 'right' : 'left'); 
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (Math.abs(dx) > threshold) attemptSwipeMove(dx > 0 ? 'right' : 'left');
     }
     else {
-      if (Math.abs(dy) > threshold) attemptSwipeMove(dy > 0 ? 'down' : 'up'); 
+      if (Math.abs(dy) > threshold) attemptSwipeMove(dy > 0 ? 'down' : 'up');
     }
     touchStart.current = null;
   };
@@ -273,7 +273,7 @@ const App: React.FC = () => {
       setBestScores(updated);
       try {
         localStorage.setItem('puzzle-15-best-scores', JSON.stringify(updated));
-      } catch (e) {}
+      } catch (e) { }
     }
   };
 
@@ -287,7 +287,7 @@ const App: React.FC = () => {
   const bestScoreKey = `level-${currentLevelId}`;
 
   const getComplexityColor = (complexity: Complexity) => {
-    switch(complexity) {
+    switch (complexity) {
       case 'easy': return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
       case 'medium': return 'text-amber-400 border-amber-500/30 bg-amber-500/10';
       case 'hard': return 'text-rose-400 border-rose-500/30 bg-rose-500/10';
@@ -315,17 +315,17 @@ const App: React.FC = () => {
           const y = Math.sin(angle * (Math.PI / 180)) * distance;
           const delay = Math.random() * 0.5;
           return (
-            <div 
-              key={i} 
-              className="digital-shard" 
-              style={{ 
-                '--x': `${x}px`, 
-                '--y': `${y}px`, 
+            <div
+              key={i}
+              className="digital-shard"
+              style={{
+                '--x': `${x}px`,
+                '--y': `${y}px`,
                 backgroundColor: colors[i % colors.length],
                 animationDelay: `${delay}s`,
                 width: `${Math.random() * 6 + 2}px`,
                 height: `${Math.random() * 6 + 2}px`
-              } as any} 
+              } as any}
             />
           );
         })}
@@ -347,9 +347,9 @@ const App: React.FC = () => {
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#030712] relative overflow-hidden">
         <Particles />
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none" />
-        
-        <button 
-          onClick={toggleSound} 
+
+        <button
+          onClick={toggleSound}
           className="absolute top-6 right-6 p-3 rounded-2xl bg-slate-900/40 border border-slate-800/50 text-slate-400 active:scale-90 transition-all z-20"
         >
           {soundEnabled ? ICONS.VolumeOn : ICONS.VolumeOff}
@@ -358,7 +358,7 @@ const App: React.FC = () => {
         <div className="z-10 w-full max-w-md flex flex-col items-center gap-8 text-center animate-slideIn">
           <header className="flex flex-col items-center">
             <div className="w-20 h-20 bg-slate-900 rounded-3xl mb-4 flex items-center justify-center border-2 border-sky-500/30 shadow-[0_0_20px_rgba(56,189,248,0.2)] mx-auto rotate-3">
-               <span className="text-3xl font-black text-sky-400 glow-text flicker">15</span>
+              <span className="text-3xl font-black text-sky-400 glow-text flicker">15</span>
             </div>
             <h1 className="text-4xl font-black tracking-tighter glow-text uppercase mb-1">Neon Matrix</h1>
             <div className="flex flex-col items-center gap-1 mb-2">
@@ -376,9 +376,9 @@ const App: React.FC = () => {
                 { mode: 'letters' as GameMode, icon: ICONS.Letters, label: 'LETTERE' },
                 { mode: 'math' as GameMode, icon: ICONS.Math, label: 'MATH' }
               ].map(module => (
-                <button 
-                  key={module.mode} 
-                  onClick={() => { setSelectedMode(module.mode); if(soundEnabled) playSelectSound(); }}
+                <button
+                  key={module.mode}
+                  onClick={() => { setSelectedMode(module.mode); if (soundEnabled) playSelectSound(); }}
                   className={`p-4 rounded-2xl border transition-all duration-300 flex flex-col items-center gap-2 active:scale-95 ${selectedMode === module.mode ? 'border-sky-500 bg-sky-500/10 shadow-[0_0_15px_rgba(56,189,248,0.15)]' : 'border-slate-800 bg-slate-900/40 opacity-40 hover:opacity-60'}`}
                 >
                   <div className={selectedMode === module.mode ? 'text-sky-400' : 'text-slate-600'}>
@@ -405,7 +405,7 @@ const App: React.FC = () => {
                   <button
                     key={level.id}
                     disabled={level.id > unlockedLevel}
-                    onClick={() => { setCurrentLevelId(level.id); if(soundEnabled) playSelectSound(); }}
+                    onClick={() => { setCurrentLevelId(level.id); if (soundEnabled) playSelectSound(); }}
                     className={`h-12 rounded-xl border flex flex-col items-center justify-center transition-all ${currentLevelId === level.id ? 'bg-sky-500 border-sky-400 text-slate-950 scale-105 shadow-lg' : level.id <= unlockedLevel ? 'border-slate-700 bg-slate-800/40 text-slate-400 hover:border-slate-500' : 'border-slate-900 bg-slate-950/50 text-slate-800 cursor-not-allowed'}`}
                   >
                     <span className="text-xs font-black">{level.gridSize}x{level.gridSize}</span>
@@ -416,7 +416,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <button 
+          <button
             onClick={startGame}
             className="w-full py-4 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-lg rounded-2xl shadow-[0_10px_40px_-10px_rgba(56,189,248,0.5)] active:scale-95 transition-all pulse-neon"
           >
@@ -432,29 +432,29 @@ const App: React.FC = () => {
       <Particles />
       <header className="w-full max-w-md flex flex-col gap-3 z-10 pt-2">
         <div className="flex items-center justify-between w-full px-1">
-           <button onClick={goHome} className="p-3 text-slate-400 hover:text-white bg-slate-900/60 rounded-2xl border border-slate-800/50 backdrop-blur-md active:scale-90 transition-transform">
-             {ICONS.Left}
-           </button>
-           
-           <div className="bg-slate-900/80 px-6 py-2 rounded-2xl border border-sky-500/20 backdrop-blur-md flex flex-col items-center shadow-[0_0_20px_rgba(56,189,248,0.1)]">
-             <div className="flex items-center gap-1.5">
-               <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${currentLevel.complexity === 'easy' ? 'bg-emerald-400' : currentLevel.complexity === 'medium' ? 'bg-amber-400' : 'bg-rose-400'}`} />
-               <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">L{currentLevel.id} • {currentLevel.mode.toUpperCase()}</span>
-             </div>
-             <span className="text-xs font-black text-sky-400 tracking-tight">{currentLevel.label}</span>
-           </div>
+          <button onClick={goHome} className="p-3 text-slate-400 hover:text-white bg-slate-900/60 rounded-2xl border border-slate-800/50 backdrop-blur-md active:scale-90 transition-transform">
+            {ICONS.Left}
+          </button>
 
-           <div className="flex gap-2">
-             <button onClick={toggleSound} className="p-3 text-slate-400 hover:text-white bg-slate-900/60 rounded-2xl border border-slate-800/50 backdrop-blur-md active:scale-90 transition-all">
-               {soundEnabled ? ICONS.VolumeOn : ICONS.VolumeOff}
-             </button>
-             <button onClick={handleUndo} disabled={history.length === 0} className={`p-3 rounded-2xl border border-slate-800/50 backdrop-blur-md transition-all active:scale-90 ${history.length > 0 ? 'text-sky-400 bg-slate-900/60' : 'text-slate-700 bg-slate-900/20 opacity-50'}`}>
-               {ICONS.Undo}
-             </button>
-             <button onClick={() => { initGame(); if(soundEnabled) playSelectSound(); }} className="p-3 text-slate-400 hover:text-white bg-slate-900/60 rounded-2xl border border-slate-800/50 backdrop-blur-md active:rotate-180 transition-transform duration-500">
-               {ICONS.Refresh}
-             </button>
-           </div>
+          <div className="bg-slate-900/80 px-6 py-2 rounded-2xl border border-sky-500/20 backdrop-blur-md flex flex-col items-center shadow-[0_0_20px_rgba(56,189,248,0.1)]">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${currentLevel.complexity === 'easy' ? 'bg-emerald-400' : currentLevel.complexity === 'medium' ? 'bg-amber-400' : 'bg-rose-400'}`} />
+              <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">L{currentLevel.id} • {currentLevel.mode.toUpperCase()}</span>
+            </div>
+            <span className="text-xs font-black text-sky-400 tracking-tight">{currentLevel.label}</span>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={toggleSound} className="p-3 text-slate-400 hover:text-white bg-slate-900/60 rounded-2xl border border-slate-800/50 backdrop-blur-md active:scale-90 transition-all">
+              {soundEnabled ? ICONS.VolumeOn : ICONS.VolumeOff}
+            </button>
+            <button onClick={handleUndo} disabled={history.length === 0} className={`p-3 rounded-2xl border border-slate-800/50 backdrop-blur-md transition-all active:scale-90 ${history.length > 0 ? 'text-sky-400 bg-slate-900/60' : 'text-slate-700 bg-slate-900/20 opacity-50'}`}>
+              {ICONS.Undo}
+            </button>
+            <button onClick={() => { initGame(); if (soundEnabled) playSelectSound(); }} className="p-3 text-slate-400 hover:text-white bg-slate-900/60 rounded-2xl border border-slate-800/50 backdrop-blur-md active:rotate-180 transition-transform duration-500">
+              {ICONS.Refresh}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2 w-full">
@@ -478,7 +478,7 @@ const App: React.FC = () => {
       <main className="flex-1 w-full max-w-md flex items-center justify-center p-2 z-10">
         <div className="game-board-container relative w-full aspect-square max-h-[75vh] max-w-[400px]">
           {tiles.length > 0 ? (
-            <div 
+            <div
               className="grid gap-2 p-3 bg-slate-900/40 border border-slate-800/50 rounded-3xl shadow-2xl backdrop-blur-md w-full h-full"
               style={{
                 gridTemplateColumns: `repeat(${currentLevel.gridSize}, 1fr)`,
@@ -512,22 +512,22 @@ const App: React.FC = () => {
           )}
 
           {isWon && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-2xl rounded-3xl animate-slideIn border-2 border-sky-500/50 p-6 overflow-hidden">
+            <div className="absolute -top-24 -bottom-24 inset-x-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-2xl rounded-3xl animate-slideIn border-2 border-sky-500/50 p-6 shadow-2xl">
               <DigitalShards />
               <CyberFlourish />
               <div className="scanline-effect opacity-30" />
-              
+
               <div className="relative mb-8 flex items-center justify-center">
                 <div className="absolute w-40 h-40 border-4 border-sky-500/30 rounded-full animate-radiate" />
                 <div className="absolute w-40 h-40 border-2 border-sky-400/20 rounded-full animate-radiate [animation-delay:0.7s]" />
                 <div className="absolute w-40 h-40 border border-sky-300/10 rounded-full animate-radiate [animation-delay:1.4s]" />
-                
+
                 <div className="relative z-10 bg-sky-500/30 p-8 rounded-full shadow-[0_0_50px_rgba(56,189,248,0.4)] border border-sky-400/50 animate-bounce">
                   <div className="scale-150 text-sky-400">
                     {ICONS.Trophy}
                   </div>
                 </div>
-                
+
                 {isNewRecord && (
                   <div className="absolute -top-6 -right-12 bg-purple-500 text-white text-[10px] font-black px-3 py-1.5 rounded-full animate-pulse rotate-12 shadow-[0_0_20px_rgba(168,85,247,0.5)] border border-purple-300/30">
                     NUOVO RECORD!
@@ -560,7 +560,7 @@ const App: React.FC = () => {
                     <p className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em]">CATEGORIA COMPLETATA</p>
                   </div>
                 )}
-                
+
                 <div className="flex gap-2 w-full">
                   <button onClick={initGame} className="flex-1 py-3 bg-slate-900/80 border border-slate-800 text-slate-300 font-bold text-xs rounded-xl hover:text-white transition-colors">
                     RIPROVA
@@ -577,8 +577,8 @@ const App: React.FC = () => {
 
       <footer className="w-full max-w-md py-4 z-10 px-2">
         <div className="flex justify-between items-center opacity-30 text-[8px] font-black tracking-[0.2em] text-slate-500">
-           <span>NEURAL MATRIX v2.5</span>
-           <span>SECURE LINK</span>
+          <span>NEURAL MATRIX v2.5</span>
+          <span>SECURE LINK</span>
         </div>
       </footer>
     </div>
